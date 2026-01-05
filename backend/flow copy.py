@@ -811,7 +811,7 @@
  ],
  "metadata": {
   "kernelspec": {
-   "display_name": "env (3.12.5)",
+   "display_name": "env",
    "language": "python",
    "name": "python3"
   },
