@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function AIAssistant({ onSend }) {
+export default function AIAssistant({ onSend, disabled = false }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -11,7 +11,7 @@ export default function AIAssistant({ onSend }) {
   const messagesEndRef = useRef(null);
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || disabled) return;
 
     const userMessage = { role: "user", content: input };
 
@@ -73,7 +73,8 @@ export default function AIAssistant({ onSend }) {
           />
           <button
             onClick={sendMessage}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            disabled={disabled}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>
