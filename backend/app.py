@@ -5,6 +5,7 @@ Converts Word documents with AI-powered formatting analysis and commands.
 
 import os
 import json
+import mammoth
 from typing import TypedDict, Annotated, List, Dict, Optional, Literal, Union
 from enum import Enum
 
@@ -13,6 +14,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import tempfile
 import uuid
+from langgraph.graph import add_messages
 from langgraph.graph import StateGraph
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
@@ -24,6 +26,7 @@ from pydantic import BaseModel, Field
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from utils.docx_utils import docx_to_html
 
 
 
@@ -40,6 +43,11 @@ model = ChatOpenAI(
     openai_api_base="https://openrouter.ai/api/v1",
     openai_api_key= os.getenv("OPENAI_API_KEY", ""),
 )
+
+# Setting Directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 # ============================================================================
@@ -247,7 +255,7 @@ Return them strictly in this format:
 
     response = model.invoke(prompt.format(issues=instruction.issues_found))
     parsed = cmd_parser.parse(response.content)
-
+    print(parsed.commands)
     return {"AutoDetectCmd": parsed.commands}
 
 
@@ -275,7 +283,7 @@ def chat_command_node(state: WordFormatter) -> dict:
     
     response = model.invoke(prompt.format(instruction=instruction))
     parsed = cmd_parser.parse(response.content)
-    
+    print("chat,", parsed.commands)
     return {
         "userCmd": parsed.commands
     }
@@ -315,26 +323,32 @@ def merge_command_node(state: WordFormatter) -> dict:
         if key not in resolved or should_override(resolved[key], cmd):
             resolved[key] = cmd
 
+    print("fm", list(resolved.values()))
     return {"formatCmd": list(resolved.values())}
 
 
 # ============================================================================
 # Formatting Tools
 # ============================================================================
-
 def set_font_size_tool(doc: Document, target: str, value: int):
-    """Apply font size formatting to document."""
     for p in doc.paragraphs:
-        if target == "heading" and "Heading" in p.style.name:
+        style = p.style.name if p.style else ""
+
+        is_heading = style.startswith("Heading") or style == "Title"
+        is_body = style in ("Normal", "Body Text", "Default Paragraph Font")
+
+        if target == "heading" and is_heading:
             for r in p.runs:
                 r.font.size = Pt(int(value))
-        elif target == "body_text" and "Normal" in p.style.name:
+
+        elif target == "body_text" and is_body:
             for r in p.runs:
                 r.font.size = Pt(int(value))
+
         elif target == "document":
             for r in p.runs:
                 r.font.size = Pt(int(value))
-    return f"Set {target} font to {value}"
+
 
 
 def set_alignment_tool(doc: Document, target: str, value: str):
@@ -385,9 +399,13 @@ def tool_cmd_node(state: WordFormatter) -> dict:
                 "reason": "No tool implementation found"
             })
 
+
+
     # Generate output filename in current directory
     output_filename = f"Final_Formatted_{uuid.uuid4().hex[:8]}.docx"
-    output_path = os.path.join(os.getcwd(), output_filename)
+    # output_path = os.path.join(os.getcwd(), output_filename)
+    # doc.save(output_path)
+    output_path = os.path.join(OUTPUT_DIR, output_filename)
     doc.save(output_path)
     
     return {
@@ -439,6 +457,10 @@ def create_graph(checkpointer=None):
 
 # Initialize graph
 graph_app = create_graph()
+
+
+
+
 
 
 # ============================================================================
@@ -622,6 +644,11 @@ def format_document():
             "error": str(e),
             "error_type": type(e).__name__
         }), 500
+    
+@app.route("/preview/<filename>")
+def preview_doc(filename):
+    path = os.path.join(OUTPUT_DIR, filename)
+    return jsonify({"html": docx_to_html(path)})
 
 
 @app.route("/download/<filename>", methods=["GET"])
@@ -632,7 +659,8 @@ def download_file(filename):
         if not filename.endswith('.docx'):
             return jsonify({"error": "Invalid file type"}), 400
         
-        file_path = os.path.join(os.getcwd(), filename)
+        file_path = os.path.join(OUTPUT_DIR, filename)
+
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
         

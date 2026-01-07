@@ -79,3 +79,9 @@ export function triggerDownload(blob, filename) {
   document.body.removeChild(a);
 }
 
+export async function fetchPreview(filename) {
+  const res = await fetch(`http://localhost:5000/preview/${filename}`);
+  if (!res.ok) throw new Error("Preview fetch failed");
+  return res.json();
+}
+

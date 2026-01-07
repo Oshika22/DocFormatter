@@ -4,7 +4,7 @@ import Navbar from "./components/Navbar";
 import FileUpload from "./components/FileUpload";
 import AIAssistant from "./components/AIAssistant";
 import DocumentPreview from "./components/DocumentPreview";
-import { formatDocument, downloadDocument, triggerDownload, checkHealth } from "./services/api";
+import { formatDocument, downloadDocument, triggerDownload, checkHealth, fetchPreview} from "./services/api";
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -12,6 +12,10 @@ function App() {
   const [formatResult, setFormatResult] = useState(null);
   const [error, setError] = useState(null);
   const [backendHealth, setBackendHealth] = useState(null);
+
+  const [originalHtml, setOriginalHtml] = useState("");
+  const [formattedHtml, setFormattedHtml] = useState("");
+
 
   // Check backend health on mount
   useEffect(() => {
@@ -42,6 +46,8 @@ function App() {
       setFormatResult(result);
       
       if (result.success) {
+        const formatted = await fetchPreview(result.output_doc);
+        setFormattedHtml(formatted.html);
         return `Formatting complete! Applied ${result.applied_actions?.length || 0} formatting actions.`;
       } else {
         throw new Error(result.error || "Formatting failed");
@@ -68,6 +74,9 @@ function App() {
       setError(`Failed to download: ${err.message}`);
     }
   };
+
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -155,7 +164,7 @@ function App() {
           <div className="rounded-2xl border bg-white shadow-sm">
             <DocumentPreview
               originalHtml={selectedFile ? `<p>Document: ${selectedFile.name}</p>` : "<p>No document uploaded</p>"}
-              formattedHtml={formatResult?.success ? "<p>Document formatted successfully!</p>" : "<p>Waiting for formatting...</p>"}
+              formattedHtml={formattedHtml || "<p>No formatted preview</p>"}
             />
           </div>
         </div>
