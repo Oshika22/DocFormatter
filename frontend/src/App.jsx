@@ -46,6 +46,9 @@ function App() {
       setFormatResult(result);
       
       if (result.success) {
+        if (result.original_html) {
+          setOriginalHtml(result.original_html);
+        }
         const formatted = await fetchPreview(result.output_doc);
         setFormattedHtml(formatted.html);
         return `Formatting complete! Applied ${result.applied_actions?.length || 0} formatting actions.`;
@@ -161,9 +164,10 @@ function App() {
           </div>
 
           {/* Preview */}
-          <div className="rounded-2xl border bg-white shadow-sm">
+          <div className="rounded-2xl border bg-white">
             <DocumentPreview
-              originalHtml={selectedFile ? `<p>Document: ${selectedFile.name}</p>` : "<p>No document uploaded</p>"}
+
+              originalHtml={originalHtml || "<p>No original preview</p>"}
               formattedHtml={formattedHtml || "<p>No formatted preview</p>"}
             />
           </div>

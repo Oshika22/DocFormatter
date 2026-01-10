@@ -14,6 +14,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import tempfile
 import uuid
+import operator
+
 from langgraph.graph import add_messages
 from langgraph.graph import StateGraph
 from langchain_openai import ChatOpenAI
@@ -115,6 +117,7 @@ class WordFormatter(TypedDict, total=False):
     AutoDetect: Annotated[DocStructure, last_write]
     AutoDetectCmd: Annotated[list, last_write]
     userCmd: Annotated[list, last_write]
+    allCmd: Annotated[list, operator.add]
     formatCmd: Annotated[list, last_write]
     output_doc: Optional[str]
     output_pdf: Optional[str]
@@ -255,8 +258,8 @@ Return them strictly in this format:
 
     response = model.invoke(prompt.format(issues=instruction.issues_found))
     parsed = cmd_parser.parse(response.content)
-    print(parsed.commands)
-    return {"AutoDetectCmd": parsed.commands}
+    print("..........Detected.....",parsed.commands)
+    return {"AutoDetectCmd": parsed.commands, "allCmd": parsed.commands}
 
 
 def chat_command_node(state: WordFormatter) -> dict:
@@ -291,14 +294,18 @@ def chat_command_node(state: WordFormatter) -> dict:
 
 def merge_command_node(state: WordFormatter) -> dict:
     """Node: Merge auto-detected and user commands with conflict resolution."""
-    TARGET_SCOPE = {
-        "document": 0,      # global
-        "text": 0,
-        "body_text": 1,
-        "heading": 2,
-        "list_items": 2,
-    }
+
     
+    TARGET_SCOPE = {
+        "heading": 1,
+        "subheading": 2,
+        "body_text": 3,
+        "key_points": 4,
+        "list_items": 5,
+        "document": 6,
+        "end_of_document": 7,
+        # any other targets can be added here
+    }
     auto_cmd = state.get("AutoDetectCmd") or []
     user_cmd = state.get("userCmd") or []
 
@@ -310,7 +317,7 @@ def merge_command_node(state: WordFormatter) -> dict:
 
     resolved = {}
 
-    def scope(t):
+    def scope(t): 
         return TARGET_SCOPE.get(t, 0)
 
     def should_override(existing, incoming):
@@ -318,13 +325,17 @@ def merge_command_node(state: WordFormatter) -> dict:
             return True
         return scope(incoming.target) >= scope(existing.target)
 
-    for cmd in auto_cmd + user_cmd:
-        key = cmd.action
-        if key not in resolved or should_override(resolved[key], cmd):
-            resolved[key] = cmd
+    # for cmd in auto_cmd + user_cmd:
+    #     key = cmd.action
+    #     # if key not in resolved :
+    #         # or should_override(resolved[key], cmd)
+    #     resolved[key] = cmd
 
+
+
+    
     print("fm", list(resolved.values()))
-    return {"formatCmd": list(resolved.values())}
+    return {"formatCmd": auto_cmd+user_cmd}
 
 
 # ============================================================================
@@ -384,6 +395,14 @@ def tool_cmd_node(state: WordFormatter) -> dict:
     skipped_actions = []
     
     for cmd in commands:
+        print(
+            "ACTION RAW:", repr(cmd.action),
+            "VALUE:", repr(cmd.action.value),
+            "IN REGISTRY:", cmd.action.value in TOOL_REGISTRY
+        )
+
+
+    for cmd in commands:
         func = TOOL_REGISTRY.get(cmd.action.value)
         if func:
             func(doc, cmd.target, cmd.value)
@@ -436,17 +455,19 @@ def create_graph(checkpointer=None):
     graph.add_node("AutoDetect_command", auto_detect_command_node)
     graph.add_node("merge_command", merge_command_node)
     graph.add_node("Toolcmd", tool_cmd_node)
+  
 
     # Set entry point
     graph.set_entry_point("load_docx")
 
     # Add edges
     graph.add_edge("load_docx", "doc_structure")
-    graph.add_edge("load_docx", "chat_command")
+    
     graph.add_edge("doc_structure", "AutoDetect_command")
+    graph.add_edge("doc_structure", "chat_command")
 
-    graph.add_edge("chat_command", "merge_command")
     graph.add_edge("AutoDetect_command", "merge_command")
+    graph.add_edge("chat_command", "merge_command")
 
     graph.add_edge("merge_command", "Toolcmd")
     graph.set_finish_point("Toolcmd")
@@ -572,8 +593,9 @@ def format_document():
             "output_doc": result.get("output_doc"),
             "applied_actions": result.get("applied_actions", []),
             "skipped_actions": result.get("skipped_actions", []),
+
         }
-        
+        response_data["original_html"] = docx_to_html(doc_path)
         # Serialize format commands
         if "formatCmd" in result:
             response_data["format_cmd"] = [
@@ -621,6 +643,8 @@ def format_document():
                 }
                 for cmd in result["userCmd"]
             ]
+
+        
         
         # Clean up temp file if it was uploaded
         if temp_file and os.path.exists(temp_file):
