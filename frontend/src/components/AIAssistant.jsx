@@ -47,7 +47,7 @@ export default function AIAssistant({ onSend, disabled = false }) {
   }, [messages]);
 
   return (
-    <div className="flex h-full flex-col rounded-xl border bg-white">
+    <div className="flex flex-col bg-slate-50 border border-purple-500 h-[700px]">
       {/* Header */}
       <div className="border-b px-4 py-3 font-semibold text-gray-700">
         AI Assistant

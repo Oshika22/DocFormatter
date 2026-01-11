@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import "./index.css";
 import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
+import Features from "./components/Features";
+import Workflow from "./components/Workflow";
+import Demo from "./components/Demo";
+import CTA from "./components/Cta";
 import FileUpload from "./components/FileUpload";
 import AIAssistant from "./components/AIAssistant";
 import DocumentPreview from "./components/DocumentPreview";
@@ -82,9 +87,17 @@ function App() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen">
       {/* Navbar */}
       <Navbar />
+
+     {/* Landing Page      */}
+      <Hero/>
+      <Features/>
+      <Workflow/>
+
+
+
 
       {/* Main Workspace */}
       <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
@@ -107,11 +120,11 @@ function App() {
         )}
 
         {/* Upload Section */}
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm flex-col items-center justify-center">
           <h2 className="mb-4 text-sm font-semibold text-gray-700">
             Upload your document
           </h2>
-          <div className="max-w-md">
+          <div className="w-full flex-col items-center justify-center">
             <FileUpload onFileSelect={handleFileSelect} />
           </div>
           {selectedFile && (
@@ -137,7 +150,7 @@ function App() {
               </h2>
               <button
                 onClick={handleDownload}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Download Formatted Document
               </button>
@@ -154,9 +167,9 @@ function App() {
         )}
 
         {/* Chat + Preview */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Chat */}
-          <div className="flex flex-col rounded-2xl border bg-white shadow-sm">
+          <div className="flex flex-col bg-white">
             <AIAssistant 
               onSend={handleSend} 
               disabled={!selectedFile || isProcessing}
@@ -164,7 +177,7 @@ function App() {
           </div>
 
           {/* Preview */}
-          <div className="rounded-2xl border bg-white">
+          <div className=" bg-white">
             <DocumentPreview
 
               originalHtml={originalHtml || "<p>No original preview</p>"}
@@ -173,6 +186,7 @@ function App() {
           </div>
         </div>
       </main>
+      <CTA/>
     </div>
   );
 }

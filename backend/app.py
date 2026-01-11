@@ -29,7 +29,7 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from utils.docx_utils import docx_to_html
-
+import re
 
 
 # Load environment variables
@@ -85,6 +85,8 @@ class ActionEnum(str, Enum):
     ALIGN_TEXT = "align_text"
     FORMAT_AS_LIST = "format_as_list"
     REMOVE_EMPTY_PARAGRAPHS = "remove_empty_paragraphs"
+    SET_FONT_FAMILY_TOOL = "set_font_family_tool"
+    SET_TEXT_STYLE_TOOL = "set_text_style_tool"
 
 
 class FormatCommand(BaseModel):
@@ -168,8 +170,10 @@ Allowed actions (field `action`):
 - "set_font_size": Change font size for the specified target.
 - "set_alignment": Change paragraph alignment.
 - "align_text": Align only paragraphs containing specific text.
-- "format_as_list": Convert paragraphs into a bulleted list.
-- "remove_empty_paragraphs": Remove trailing empty paragraphs.
+- "set_font_family": Change the font family for the specified target.
+- "set_text_style_tool": Apply text styling (bold, italic, underline) to the specified target. allowed value should be an existing font-family
+- "remove_empty_paragraphs": Remove empty or trailing blank paragraphs from the document.
+- "format_as_list": Convert paragraphs into a bulleted or numbered list. allowed value: "bullet" | "number"
 
 
 Allowed target (field `target`):
@@ -378,11 +382,137 @@ def set_alignment_tool(doc: Document, target: str, value: str):
             )
     return f"Set {target} alignment to {value}"
 
+def set_font_family_tool(doc: Document, target: str, value: str):
+    """
+    value: font name (e.g. "Times New Roman", "Calibri")
+    """
+    for p in doc.paragraphs:
+        style = p.style.name if p.style else ""
+        is_heading = style.startswith("Heading") or style == "Title"
+        is_body = style in ("Normal", "Body Text", "Default Paragraph Font")
+
+        applies = (
+            target == "document" or
+            (target == "heading" and is_heading) or
+            (target == "body_text" and is_body) or
+            (target.lower() in p.text.lower())
+        )
+
+        if applies:
+            for r in p.runs:
+                r.font.name = value
+
+
+def set_text_style_tool(doc: Document, target: str, value):
+    """
+    value can be:
+    - "bold"
+    - "italic"
+    - "underline"
+    - or dict { "bold": true, ... }
+    """
+
+    # 🔹 Normalize value
+    if isinstance(value, str):
+        value = {
+            "bold": value == "bold",
+            "italic": value == "italic",
+            "underline": value == "underline"
+        }
+
+    for p in doc.paragraphs:
+        style = p.style.name if p.style else ""
+        is_heading = style.startswith("Heading") or style == "Title"
+        is_body = style in ("Normal", "Body Text", "Default Paragraph Font")
+
+        # 🔹 Target matching
+        applies = (
+            target == "document" or
+            (target == "heading" and is_heading) or
+            (target == "body_text" and is_body) or
+            (target.lower() in p.text.lower())
+        )
+
+        if applies:
+            for r in p.runs:
+                if "bold" in value:
+                    r.bold = value["bold"]
+                if "italic" in value:
+                    r.italic = value["italic"]
+                if "underline" in value:
+                    r.underline = value["underline"]
+
+def remove_empty_paragraphs_tool(doc: Document, target: str, value=None):
+    """
+    Removes empty or whitespace-only paragraphs from the document.
+    target: expected to be "document"
+    value: ignored (can be None)
+    """
+    for p in list(doc.paragraphs):
+        if not p.text or not p.text.strip():
+            p._element.getparent().remove(p._element)
+
+
+def is_list_candidate(paragraph):
+    """
+    Detect if a paragraph looks like a list item.
+    - Starts with '-', '*', '•' (bullet)
+    - Starts with number + '.' (numbered)
+    """
+    text = paragraph.text.strip()
+    if not text:
+        return False
+
+    # Bullet detection
+    if text.startswith(("-", "*", "•")):
+        return True
+
+    # Numbered detection (1., 2., 3.)
+    if re.match(r"^\d+\.", text):
+        return True
+
+    return False
+
+
+def format_as_list_tool(doc: Document, target: str, value: str):
+    """
+    Converts only candidate paragraphs into a bulleted or numbered list.
+    value: "bullet" | "number"
+    target: "list_items" or a text substring to match paragraphs
+    """
+    style_map = {
+        "bullet": "List Bullet",
+        "number": "List Number"
+    }
+
+    list_style = style_map.get(value.lower())
+    if not list_style:
+        return  # invalid value
+
+    for p in doc.paragraphs:
+        applies = False
+
+        if target == "list_items" and is_list_candidate(p):
+            applies = True
+        elif target.lower() in p.text.lower():
+            applies = True
+
+        if applies and p.text.strip():
+            p.style = list_style
+
+
+
 
 TOOL_REGISTRY = {
     "set_font_size": set_font_size_tool,
     "set_alignment": set_alignment_tool,
-    "align_text": set_alignment_tool  # Alias
+    "align_text": set_alignment_tool,  # Alias
+    "set_font_family_tool": set_font_family_tool,
+    "set_text_style_tool": set_text_style_tool,
+    "remove_empty_paragraphs": remove_empty_paragraphs_tool,
+    "format_as_list": format_as_list_tool,
+    "set_font_family": set_font_family_tool,
+
 }
 
 
