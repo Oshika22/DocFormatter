@@ -100,13 +100,13 @@ function App() {
 
 
       {/* Main Workspace */}
-      <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+      <main className="mx-auto px-4 py-6 space-y-6 bg-linear-to-br from-purple-200 via-indigo-200 to-pink-200">
         {/* Backend Status */}
         {backendHealth && (
           <div className={`rounded-lg border p-3 text-sm ${
             backendHealth.status === "healthy" 
-              ? "bg-green-50 border-green-200 text-green-700" 
-              : "bg-red-50 border-red-200 text-red-700"
+              ? "bg-green-50/70 border-green-200 text-green-700" 
+              : "bg-red-50/70 border-red-200 text-red-700"
           }`}>
             Backend: {backendHealth.status === "healthy" ? "✓ Connected" : "✗ Disconnected"}
           </div>
@@ -114,13 +114,13 @@ function App() {
 
         {/* Error Message */}
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-lg border border-red-200 bg-red-50/70 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {/* Upload Section */}
-        <div className="rounded-2xl border bg-white p-6 shadow-sm flex-col items-center justify-center">
+        <div className="rounded-lg border border-purple-600 bg-white/50 p-6 shadow-sm flex-col items-center justify-center">
           <h2 className="mb-4 text-sm font-semibold text-gray-700">
             Upload your document
           </h2>
@@ -136,21 +136,21 @@ function App() {
 
         {/* Processing Status */}
         {isProcessing && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-blue-700">
             Processing document... This may take a moment.
           </div>
         )}
 
         {/* Format Result */}
         {formatResult && formatResult.success && (
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-indigo-500 bg-indigo-50/70 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-700">
                 Formatting Complete
               </h2>
               <button
                 onClick={handleDownload}
-                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-lg bg-linear-to-br from-purple-500 via-indigo-500 to-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Download Formatted Document
               </button>
@@ -169,7 +169,7 @@ function App() {
         {/* Chat + Preview */}
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Chat */}
-          <div className="flex flex-col bg-white">
+          <div className="flex flex-col">
             <AIAssistant 
               onSend={handleSend} 
               disabled={!selectedFile || isProcessing}
@@ -177,14 +177,16 @@ function App() {
           </div>
 
           {/* Preview */}
-          <div className=" bg-white">
+          <div className="">
             <DocumentPreview
 
               originalHtml={originalHtml || "<p>No original preview</p>"}
               formattedHtml={formattedHtml || "<p>No formatted preview</p>"}
             />
           </div>
+          
         </div>
+        
       </main>
       <CTA/>
     </div>

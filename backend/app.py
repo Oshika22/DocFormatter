@@ -29,6 +29,8 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from utils.docx_utils import docx_to_html
+from docx.enum.text import WD_BREAK
+from docx.shared import RGBColor
 import re
 
 
@@ -87,7 +89,8 @@ class ActionEnum(str, Enum):
     REMOVE_EMPTY_PARAGRAPHS = "remove_empty_paragraphs"
     SET_FONT_FAMILY_TOOL = "set_font_family_tool"
     SET_TEXT_STYLE_TOOL = "set_text_style_tool"
-
+    INSERT_PAGE_BREAK = "insert_page_break",
+    SET_FONT_COLOR_TOOL = "set_font_color_tool"
 
 class FormatCommand(BaseModel):
     """Single formatting command."""
@@ -174,7 +177,8 @@ Allowed actions (field `action`):
 - "set_text_style_tool": Apply text styling (bold, italic, underline) to the specified target. allowed value should be an existing font-family
 - "remove_empty_paragraphs": Remove empty or trailing blank paragraphs from the document.
 - "format_as_list": Convert paragraphs into a bulleted or numbered list. allowed value: "bullet" | "number"
-
+- "insert_page_break": inserts the page break
+- "set_font_color_tool": changes the font color,values is a hex color code ("#FF5733"). If a named color is provided, automatically convert it to its hex equivalent before applying.
 
 Allowed target (field `target`):
 - anything present in the document can also be the target
@@ -453,33 +457,26 @@ def remove_empty_paragraphs_tool(doc: Document, target: str, value=None):
             p._element.getparent().remove(p._element)
 
 
-def is_list_candidate(paragraph):
-    """
-    Detect if a paragraph looks like a list item.
-    - Starts with '-', '*', '•' (bullet)
-    - Starts with number + '.' (numbered)
-    """
-    text = paragraph.text.strip()
+
+def is_list_candidate(p):
+    text = p.text.strip()
     if not text:
         return False
-
-    # Bullet detection
-    if text.startswith(("-", "*", "•")):
-        return True
-
-    # Numbered detection (1., 2., 3.)
-    if re.match(r"^\d+\.", text):
-        return True
-
-    return False
+    return (
+        text.startswith(("-", "*", "•")) or
+        re.match(r"^\d+\.", text)
+    )
 
 
 def format_as_list_tool(doc: Document, target: str, value: str):
     """
-    Converts only candidate paragraphs into a bulleted or numbered list.
+    Converts ONLY intended paragraphs into a list.
     value: "bullet" | "number"
-    target: "list_items" or a text substring to match paragraphs
+    target:
+      - "list_items" → auto-detected list-like paragraphs
+      - text substring → explicit match ONLY
     """
+
     style_map = {
         "bullet": "List Bullet",
         "number": "List Number"
@@ -487,18 +484,114 @@ def format_as_list_tool(doc: Document, target: str, value: str):
 
     list_style = style_map.get(value.lower())
     if not list_style:
-        return  # invalid value
+        return
+
+    # 🔒 CRITICAL SAFETY CHECK
+    is_text_target = target not in ("list_items", "document")
 
     for p in doc.paragraphs:
         applies = False
 
-        if target == "list_items" and is_list_candidate(p):
-            applies = True
-        elif target.lower() in p.text.lower():
-            applies = True
+        if target == "list_items":
+            applies = is_list_candidate(p)
 
-        if applies and p.text.strip():
+        elif is_text_target:
+            # substring match ONLY for explicit text targets
+            if target.strip() and target.lower() in p.text.lower():
+                applies = True
+
+        if applies:
             p.style = list_style
+
+from docx.enum.text import WD_BREAK
+
+from docx.enum.text import WD_BREAK
+
+def insert_page_break(doc: Document, target: str, value=None):
+    """
+    Inserts a page break BEFORE a major heading (Heading 1 / Heading 2)
+    matching the target text.
+    
+    target: heading text (e.g. "methodology")
+    value: ignored
+    """
+
+    for i, p in enumerate(doc.paragraphs):
+        text = p.text.strip().lower()
+
+        # 1️⃣ Must match target text
+        if target.lower() not in text:
+            continue
+
+        # 2️⃣ Must be a heading
+        if not p.style or not p.style.name.startswith("Heading"):
+            continue
+
+        # 3️⃣ Avoid breaking at top of document
+        if i == 0:
+            return
+
+        # 4️⃣ Insert page break BEFORE this heading
+        prev_p = doc.paragraphs[i - 1]
+        prev_p.add_run().add_break(WD_BREAK.PAGE)
+        return
+
+from docx.shared import RGBColor
+
+def set_font_color_tool(doc: Document, target: str, value: str):
+    """
+    Changes font color for matching paragraphs/runs.
+
+    target:
+      - "document"
+      - "heading"
+      - "body_text"
+      - substring to match paragraph text
+
+    value:
+      - named color ("red", "blue", "black")
+      - hex color ("#FF5733")
+    """
+
+    # 🎨 Supported named colors
+    color_map = {
+        "black": RGBColor(0, 0, 0),
+        "red": RGBColor(255, 0, 0),
+        "blue": RGBColor(0, 0, 255),
+        "green": RGBColor(0, 128, 0),
+        "gray": RGBColor(128, 128, 128)
+    }
+
+    # Resolve color
+    if value.startswith("#") and len(value) == 7:
+        rgb = RGBColor(
+            int(value[1:3], 16),
+            int(value[3:5], 16),
+            int(value[5:7], 16)
+        )
+    else:
+        rgb = color_map.get(value.lower())
+
+    if not rgb:
+        return  # invalid color
+
+    for p in doc.paragraphs:
+        style = p.style.name if p.style else ""
+
+        is_heading = style.startswith("Heading") or style == "Title"
+        is_body = style in ("Normal", "Body Text", "Default Paragraph Font")
+
+        applies = (
+            target == "document" or
+            (target == "heading" and is_heading) or
+            (target == "body_text" and is_body) or
+            target.lower() in p.text.lower()
+        )
+
+        if applies:
+            for r in p.runs:
+                r.font.color.rgb = rgb
+
 
 
 
@@ -512,7 +605,8 @@ TOOL_REGISTRY = {
     "remove_empty_paragraphs": remove_empty_paragraphs_tool,
     "format_as_list": format_as_list_tool,
     "set_font_family": set_font_family_tool,
-
+    "insert_page_break": insert_page_break,
+    "set_font_color_tool": set_font_color_tool
 }
 
 

@@ -47,9 +47,9 @@ export default function AIAssistant({ onSend, disabled = false }) {
   }, [messages]);
 
   return (
-    <div className="flex flex-col bg-slate-50 border border-purple-500 h-[700px]">
+    <div className="flex flex-col bg-white/40 border border-purple-500 h-175 mt-4">
       {/* Header */}
-      <div className="border-b px-4 py-3 font-semibold text-gray-700">
+      <div className="border-b border-purple-500 px-4 py-3 font-semibold text-gray-700">
         AI Assistant
       </div>
 
@@ -62,21 +62,21 @@ export default function AIAssistant({ onSend, disabled = false }) {
       </div>
 
       {/* Input */}
-      <div className="border-t p-3">
+      <div className="border-t border-purple-500 p-3">
         <div className="flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Type your instruction..."
-            className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-3xl border border-indigo-500 px-3 py-2 text-sm focus:outline-none"
           />
           <button
             onClick={sendMessage}
             disabled={disabled}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full h-12 w-12 bg-linear-to-br from-purple-600 via-indigo-600 to-pink-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-600 hover:via-indigo-600 hover:to-pink-600 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send
+            
           </button>
         </div>
       </div>
@@ -95,7 +95,7 @@ function MessageBubble({ role, content }) {
         className={`max-w-[75%] rounded-lg px-4 py-2 text-sm leading-relaxed
           ${
             isUser
-              ? "bg-blue-600 text-white"
+              ? "bg-indigo-600 text-white"
               : "bg-gray-100 text-gray-800"
           }
         `}

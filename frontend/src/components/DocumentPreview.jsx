@@ -7,18 +7,19 @@ export default function DocumentPreview({
   const [view, setView] = useState("formatted");
 
   return (
-    <div className="flex flex-col w-full border border-pink-500 h-[700px]">
+    <div className="flex flex-col w-full border border-pink-500 bg-white/40 h-175 mt-4">
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-100 border-b px-4 py-3">
+      <div className="flex items-center justify-between border-b border-pink-500 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-700">
           Document Preview
         </h2>
 
         {/* Toggle */}
-        <div className="flex rounded-lg border border-indigo-500 bg-gray-200 p-1 text-xs">
+        <div className="flex rounded-3xl border border-indigo-500 bg-indigo-100/50 p-1 text-xs">
           <ToggleButton
             active={view === "original"}
             onClick={() => setView("original")}
+          
           >
             Original
           </ToggleButton>
@@ -30,12 +31,12 @@ export default function DocumentPreview({
           </ToggleButton>
           
         </div>
-        <div>download</div>
+        
       </div>
 
       {/* Preview Area */}
-      <div className="flex-1 bg-slate-100 overflow-y-auto p-4">
-        <div className="mx-auto max-w-[800px] rounded-md bg-white px-10 py-12 shadow-sm h-[600px]">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="mx-auto max-w-200 rounded-md bg-white px-10 py-12 shadow-sm min-h-150">
           <div
             className="prose max-w-none"
             dangerouslySetInnerHTML={{

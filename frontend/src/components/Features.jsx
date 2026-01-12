@@ -99,7 +99,7 @@ export default function Features() {
                 className={`
                   pointer-events-none
                   absolute inset-x-0 bottom-0 h-24
-                  bg-gradient-to-t
+                  bg-linear-to-t
                   ${f.fog}
                   to-transparent
                   blur-2xl
