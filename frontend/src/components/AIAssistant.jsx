@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperPlane } from "@fortawesome/free-regular-svg-icons";
 
 export default function AIAssistant({ onSend, disabled = false }) {
   const [messages, setMessages] = useState([
@@ -74,9 +76,10 @@ export default function AIAssistant({ onSend, disabled = false }) {
           <button
             onClick={sendMessage}
             disabled={disabled}
-            className="rounded-full h-12 w-12 bg-linear-to-br from-purple-600 via-indigo-600 to-pink-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-600 hover:via-indigo-600 hover:to-pink-600 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full h-12 w-12 bg-linear-to-br from-purple-600 via-indigo-600 to-pink-600 px-4 py-2 font-medium text-white hover:from-purple-600 hover:via-indigo-600 hover:to-pink-600 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            
+            <FontAwesomeIcon icon={faPaperPlane} />
+
           </button>
         </div>
       </div>
